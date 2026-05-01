@@ -65,8 +65,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          # Enable persisting credentials so 'git push' inside the agent has access to the repository
-          persist-credentials: true
+          # Set to false to avoid "Duplicate header: Authorization" conflict with GITHUB_TOKEN in env
+          persist-credentials: false
 
       - name: Prepare Prompt
         id: prep
