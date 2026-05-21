@@ -16,3 +16,4 @@ STRICT WORKFLOW RULE (CRITICAL):
 8. Preserve Patch Failure Output: Do NOT modify the output format or logic when a patch fails.
 9. Delete Kernel Tracker: The tracking workflow (`oplus-kernel-monitor.yml`) has been automatically deleted. Do NOT attempt to restore it.
 10. Release Verification: When checking for releases (e.g., toolchains), you MUST use `gh cli` to verify it is a true release (`gh release view <tag>`), do not simply check if a tag exists.
+11. Avoid using  `--fuzz=3` in patch command, which is dangrous.
