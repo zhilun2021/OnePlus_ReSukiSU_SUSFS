@@ -157,8 +157,7 @@ jobs:
             --title "🔄 Sync upstream $(date +%Y-%m-%d)" \
             --body "Automatic upstream sync. No conflicts detected." \
             --base main \
-            --head "$BRANCH" \
-            --json url -q '.url')
+            --head "$BRANCH")
           echo "skip_agent=true" >> "$GITHUB_OUTPUT"
           echo "PR created: $PR_URL"
 
