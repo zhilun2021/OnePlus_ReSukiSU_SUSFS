@@ -144,6 +144,7 @@ jobs:
           echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
 
           AHEAD=$(git rev-list --count origin/main..HEAD)
+          echo "Commits ahead of origin/main: $AHEAD"
           if [ "$AHEAD" -eq 0 ]; then
             echo "skip_agent=true" >> "$GITHUB_OUTPUT"
             echo "No new commits, nothing to do."
@@ -158,7 +159,8 @@ jobs:
             --title "🔄 Sync upstream $(date +%Y-%m-%d)" \
             --body "Automatic upstream sync. No conflicts detected." \
             --base main \
-            --head "$BRANCH")
+            --head "$BRANCH" \
+            --repo "${{ github.repository }}")
           echo "skip_agent=true" >> "$GITHUB_OUTPUT"
           echo "PR created: $PR_URL"
 
@@ -399,7 +401,7 @@ jobs:
           )
           fi
           
-          gh pr comment $PR_NUMBER --body "$COMMENT"
+          gh pr comment $PR_NUMBER --body "$COMMENT" --repo "${{ github.repository }}"
 
       - name: Fail the workflow
         if: needs.trigger-test-build.result != 'success'
