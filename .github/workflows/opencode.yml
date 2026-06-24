@@ -104,16 +104,20 @@ jobs:
             echo "::endgroup::"
 
             echo "::group::Auto-resolve merge conflicts (split by ownership)"
-            # GOAL: take ALL upstream changes. Non-conflicting upstream edits -- including
-            # ones under .github/** -- are ALREADY merged in by `git merge` above, so
-            # upstream CI improvements (SusFS support, cache fixes, ...) flow in for free.
+            # GOAL: take ALL upstream changes AND let THIS workflow commit a real 2-parent
+            # merge commit (so the sync PR contains the upstream commits + a merge commit
+            # and merge-base advances). Every conflict is resolved deterministically below
+            # -- nothing is left for the agent -- because the agent's tool flattens its
+            # commit to a single parent and would drop the upstream ancestry.
             #
-            # For files that ACTUALLY conflict, split by ownership:
-            #   * Fork-owned CI/docs (.github/**, README, ...) are a HEAVY rewrite of
-            #     upstream (ReSukiSU branding, ccache job, model-link table, DWC3, KSUN
-            #     removal, t.me links). A blind `--theirs` would drop those, so we LEAVE
-            #     these conflicts UNRESOLVED -- they are routed to the opencode agent,
-            #     which merges them per guidelines.txt (keep fork bits, take upstream logic).
+            # Non-conflicting upstream edits -- including ones under .github/** -- are
+            # ALREADY merged in by `git merge` above, so upstream CI improvements (SusFS
+            # support, cache fixes, ...) in areas the fork didn't touch flow in for free.
+            #
+            # Only directly CONFLICTING hunks are resolved here, split by ownership:
+            #   * Fork-owned CI/docs (.github/**, README, ...) keep OURS -- the fork is a
+            #     heavy rewrite (ReSukiSU branding, ccache job, model-link table, DWC3, KSUN
+            #     removal, t.me links); a blind --theirs would drop those.
             #   * Everything else (device configs, manifests, kernel sources) takes
             #     UPSTREAM; sanitize.py below re-applies the deterministic fork transforms
             #     (uname -> OP-RESUKISU, AnyKernel3 URL, ...).
@@ -121,12 +125,29 @@ jobs:
               [ -z "$f" ] && continue
               case "$f" in
                 .github/*|README.md|compatibility.md|LICENSE)
-                  # Fork-owned: leave unresolved so the agent does a guideline-aware merge.
-                  continue
+                  # Fork-owned CI/docs: for directly COLLIDING hunks keep OURS so fork CI
+                  # stays working. Non-conflicting upstream edits to these files were
+                  # ALREADY merged cleanly by `git merge` above, so upstream CI improvements
+                  # in areas the fork didn't touch still flow in -- only hunks that overlap
+                  # a fork customization fall back to fork.
+                  #
+                  # Resolving HERE (rather than leaving the conflict for the opencode agent)
+                  # is deliberate: it lets THIS workflow commit a real 2-parent merge commit
+                  # below. The agent runs in a tool that flattens its commit to a single
+                  # parent, which drops the upstream ancestry -- main's merge-base would
+                  # never advance and every sync would re-merge the same commits. Keeping
+                  # the merge in the workflow makes the sync PR contain the upstream commits
+                  # + one merge commit, and advances merge-base.
+                  git checkout --ours -- "$f" 2>/dev/null || true
+                  git add -- "$f" 2>/dev/null || true
+                  ;;
+                *)
+                  # Device configs, manifests, kernel sources: take UPSTREAM; sanitize.py
+                  # below re-applies deterministic fork transforms (uname, URLs).
+                  git checkout --theirs -- "$f" 2>/dev/null || git rm -f --quiet "$f" 2>/dev/null || true
+                  git add -- "$f" 2>/dev/null || true
                   ;;
               esac
-              git checkout --theirs -- "$f" 2>/dev/null || git rm -f --quiet "$f" 2>/dev/null || true
-              git add -- "$f" 2>/dev/null || true
             done
             echo "Remaining unmerged after auto-resolve: $(git ls-files -u 2>/dev/null | awk '{print $4}' | sort -u | wc -l | tr -d ' ')"
             echo "::endgroup::"
